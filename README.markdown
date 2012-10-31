@@ -26,7 +26,7 @@ handling only new order confirmations:
 	class MyController(Controller):
 		def handle_new_order(self, message, order_id, context, order=None):
 			# do something with the order
-    		return gmodel.ok_t()
+			return gmodel.ok_t()
 
 Singleton Controller Instance
 -----------------------------
@@ -87,7 +87,7 @@ This is a very basic implementation treated as a single file for Django of evert
 	class MyController(Controller):
 		def handle_new_order(self, message, order_id, context, order=None):
 			# do something with the order
-    		return gmodel.ok_t()
+			return gmodel.ok_t()
 	
 	controller = MyController(settings.GC_ID, settings.GC_KEY, is_sandbox=settings.GC_SANDBOX, currency=settings.GC_CURRENCY)
 	
@@ -109,12 +109,12 @@ This is a very basic implementation treated as a single file for Django of evert
 	@csrf_exempt
 	def google_checkout_notification(request):
 		if request.META["CONTENT_TYPE"] == "application/x-www-form-urlencoded":
-	        serial = request.REQUEST['serial-number']
-	        result = controller.process_notification(serial)
-	    else:
-	        result = controller.receive_xml(request.raw_post_data)
-	    
-	    if result.__class__ == gmodel.ok_t:
-	            result = gmodel.notification_acknowledgment_t(serial_number=serial)
-	        
-	    return HttpResponse(result, content_type="application/xml; charset=UTF-8")
+			serial = request.REQUEST['serial-number']
+			result = controller.process_notification(serial)
+		else:
+			result = controller.receive_xml(request.raw_post_data)
+		
+		if result.__class__ == gmodel.ok_t:
+				result = gmodel.notification_acknowledgment_t(serial_number=serial)
+			
+		return HttpResponse(result, content_type="application/xml; charset=UTF-8")
