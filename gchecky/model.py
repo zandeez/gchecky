@@ -909,6 +909,10 @@ class ship_items_t(abstract_order_t):
                                                gxml.Complex('item-shipping-information',
                                                             item_shipping_information_t))
     send_email = gxml.Boolean('send-email')
+    
+class notification_history_request_t(gxml.Document):
+    tag_name = 'notification-history-request'
+    serial_number  = gxml.String('serial-number')
 
 if __name__ == "__main__":
     def run_doctests():

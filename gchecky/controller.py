@@ -47,6 +47,24 @@ class html_order(object):
                </form>
                """ % (html_escape(self.url), self.cart, self.signature, html_escape(self.button))
 
+class xml_order(object):
+    order = None
+    signature = None
+    url = None #Set by application before calling .html()
+    button = None
+    xml = None
+
+    def html(self):
+        """
+        Return the html form containing two required hidden fields
+        and the submit button in the form of Google Checkout button image.
+        """
+        return """
+               <form method="post" action="%s">
+                   <input type="image" src="%s" alt="Google Checkout" />
+               </form>
+               """ % (html_escape(self.url), html_escape(self.button))
+
 class ControllerLevel_1(object):
     __MERCHANT_BUTTON  = 'MERCHANT_BUTTON'
     __CLIENT_POST_CART = 'CLIENT_POST_CART'
@@ -55,6 +73,7 @@ class ControllerLevel_1(object):
     __CLIENT_DONATION  = 'CLIENT_DONATION'
     __SERVER_DONATION  = 'SERVER_DONATION'
     __DONATION_BUTTON  = 'DONATION_BUTTON'
+    __NOTIFICATION_HISTORY = 'NOTIFICATION_HISTORY'
     __SANDBOX_URLS  = {__MERCHANT_BUTTON: 'https://sandbox.google.com/checkout/buttons/checkout.gif?merchant_id=%s&w=160&h=43&style=white&variant=text',
                        __CLIENT_POST_CART:'https://sandbox.google.com/checkout/api/checkout/v2/checkout/Merchant/%s',
                        __SERVER_POST_CART:'https://sandbox.google.com/checkout/api/checkout/v2/merchantCheckout/Merchant/%s',
@@ -62,6 +81,7 @@ class ControllerLevel_1(object):
                        __CLIENT_DONATION: 'https://sandbox.google.com/checkout/api/checkout/v2/checkout/Donations/%s',
                        __SERVER_DONATION: 'https://sandbox.google.com/checkout/api/checkout/v2/merchantCheckout/Donations/%s',
                        __DONATION_BUTTON: 'https://sandbox.google.com/checkout/buttons/donation.gif?merchant_id=%s&w=160&h=43&style=white&variant=text',
+                       __NOTIFICATION_HISTORY : 'https://sandbox.google.com/checkout/api/checkout/v2/reports/Merchant/%s',
                       }
     __PRODUCTION_URLS={__MERCHANT_BUTTON: 'https://checkout.google.com/buttons/checkout.gif?merchant_id=%s&w=160&h=43&style=white&variant=text',
                        __CLIENT_POST_CART:'https://checkout.google.com/api/checkout/v2/checkout/Merchant/%s',
@@ -70,6 +90,7 @@ class ControllerLevel_1(object):
                        __CLIENT_DONATION: 'https://checkout.google.com/api/checkout/v2/checkout/Donations/%s',
                        __SERVER_DONATION: 'https://checkout.google.com/api/checkout/v2/merchantCheckout/Donations/%s',
                        __DONATION_BUTTON: 'https://checkout.google.com/buttons/donation.gif?merchant_id=%s&w=160&h=43&style=white&variant=text',
+                       __NOTIFICATION_HISTORY: 'https://checkout.google.com/api/checkout/v2/reports/Merchant/%s'
                       }
     # Specify all the needed information such as merchant account credentials:
     #   - sandbox or production
@@ -112,6 +133,9 @@ class ControllerLevel_1(object):
 
     def get_donation_button_url(self, diagnose):
         return self._get_url(self.__DONATION_BUTTON, diagnose) % (self.vendor_id,)
+    
+    def get_notification_history_url(self, diagnose):
+        return self._get_url(self.__NOTIFICATION_HISTORY, diagnose) %  (self.vendor_id,)
 
     def create_HMAC_SHA_signature(self, xml_text):
         import hmac, sha
@@ -391,7 +415,7 @@ class ControllerLevel_2(ControllerLevel_1):
         The helper method that submits an xml message to GC.
         """
         context.diagnose = diagnose
-        url = self.get_order_processing_url(diagnose)
+        url = getattr(context, 'url', self.get_order_processing_url(diagnose))
         context.url = url
         import urllib2
         req = urllib2.Request(url=url, data=msg)
@@ -480,7 +504,7 @@ class ControllerLevel_2(ControllerLevel_1):
         doc = self.send_message(gmodel.hello_t(), context)
         if isinstance(doc, gxml.Document) and (doc.__class__ != gmodel.bye_t):
             error = "Expected <bye/> but got %s" % (doc.__class__,)
-            raise LibraryError(message=error, context=context, origin=e)
+            raise LibraryError(message=error, context=context, origin=error)
 
     def archive_order(self, order_id):
         self.send_message(
@@ -637,6 +661,27 @@ class ControllerLevel_2(ControllerLevel_1):
             assert result.__class__ is gmodel.ok_t
 
         self.__call_handler('on_message_received', context=context)
+        return result
+    
+    def prepare_server_order(self, order, order_id=None, diagnose=False):
+        oo = xml_order()
+        oo.url = None #Application defined post back
+        oo.order = order
+        oo.button = self.get_checkout_button_url(diagnose)
+        oo.submit = lambda diagnose=False: self.post_cart(oo.order, diagnose)
+        return oo
+    
+    def post_cart(self, cart_t, diagnose=False):
+        context = ControllerContext(outgoing=True)
+        context.url = self.get_server_post_cart_url(diagnose)
+        return self.send_message(cart_t, context=context, diagnose=diagnose)
+    
+    def process_notification(self, serial, diagnose=False):
+        context = ControllerContext(outgoing=True)
+        context.url = self.get_notification_history_url(diagnose)
+        req = gmodel.notification_history_request_t(serial_number=serial)
+        res = self.send_message(req, context=context, diagnose=diagnose)
+        result = self.receive_message(res, None, context)
         return result
 
 # Just an alias with a shorter name.
