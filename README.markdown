@@ -89,7 +89,8 @@ This is a very basic implementation treated as a single file for Django of evert
 			# do something with the order
 			return gmodel.ok_t()
 	
-	controller = MyController(settings.GC_ID, settings.GC_KEY, is_sandbox=settings.GC_SANDBOX, currency=settings.GC_CURRENCY)
+	controller = MyController(settings.GC_ID, settings.GC_KEY,
+		is_sandbox=settings.GC_SANDBOX, currency=settings.GC_CURRENCY)
 	
 	def checkout(request):
 		cart = gmodel.checkout_shopping_cart_t(shopping_cart = gmodel.shopping_cart_t())
