@@ -103,8 +103,8 @@ This is a very basic implementation treated as a single file for Django of evert
 			)
 		]
 		
-	order = controller.prepare_server_order(cart).submit()
-	return redirect(order.redirect_url)
+		order = controller.prepare_server_order(cart).submit()
+		return redirect(order.redirect_url)
 	
 	@csrf_exempt
 	def google_checkout_notification(request):
